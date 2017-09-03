@@ -2,6 +2,8 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebookincubator/create-react-app).
 
+Demo: https://create-react-app-geofencing.herokuapp.com/
+
 ![/example.gif](/example.gif)
 
 Minimal create-react-app geofencing example.
