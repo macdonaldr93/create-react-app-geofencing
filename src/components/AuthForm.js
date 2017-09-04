@@ -13,6 +13,7 @@ class AuthForm extends Component {
     code: '',
     confirming: false,
     recaptcha: false,
+    currentUser: null,
   };
 
   handlePhoneNumberChange = (event) => {
@@ -25,7 +26,10 @@ class AuthForm extends Component {
     }
 
     this.setState({confirming: true});
-    authWithPhoneNumber(this.state.phoneNumber, this.verifier);
+    authWithPhoneNumber(this.state.phoneNumber, this.verifier)
+      .catch(() => {
+        this.setState({confirming: false});
+      });
   };
 
   handleCodeChange = (event) => {
@@ -51,6 +55,8 @@ class AuthForm extends Component {
   };
 
   componentDidMount() {
+    firebase.auth().useDeviceLanguage();
+
     this.verifier = new firebase.auth.RecaptchaVerifier('recaptcha', {
       size: 'invisible',
       callback: () => {
@@ -58,6 +64,22 @@ class AuthForm extends Component {
           recaptcha: true,
         });
       },
+    });
+
+    firebase
+      .auth()
+      .setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+    firebase.auth().onAuthStateChanged((user) => {
+      if (user) {
+        this.setState({
+          currentUser: user,
+        });
+      } else {
+        this.setState({
+          currentUser: null,
+        });
+      }
     });
   }
 
@@ -78,6 +100,7 @@ class AuthForm extends Component {
             <Button id="Auth-Phone-Submit" onClick={this.handlePhoneNumberSubmit}>Login</Button>
           </FormControl>
         )}
+        {this.state.currentUser && this.state.currentUser.phoneNumber}
         <div id="recaptcha" />
       </div>
     );
