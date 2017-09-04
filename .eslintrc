@@ -1,0 +1,14 @@
+{
+  "extends": [
+    "plugin:shopify/esnext",
+    "plugin:shopify/mocha",
+    "plugin:shopify/react"
+  ],
+  "rules": {
+    "no-process-env": 0
+  },
+  "globals": {
+    "google": 1,
+    "process": 1
+  }
+}

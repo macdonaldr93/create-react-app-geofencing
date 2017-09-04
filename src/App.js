@@ -1,29 +1,104 @@
 /* global google */
+import {connect} from 'react-firebase';
 import React, {Component} from 'react';
 import Moment from 'react-moment';
+import PropTypes from 'prop-types';
+import {config} from './firebase';
 import Map from './Map';
 import './App.css';
 
 const googleMapURL = `https://maps.googleapis.com/maps/api/js?libraries=geometry,drawing&key=${process.env.REACT_APP_MAPS_API_KEY}`;
 
 class App extends Component {
-  constructor(props) {
-    super(props);
+  state = {
+    center: {
+      // CN Tower default
+      lat: 43.642558,
+      lng: -79.387046,
+    },
+    content: 'Getting position...',
+    checkedOnce: false,
+    insideFence: false,
+    previousPolygon: null,
+    fence: null,
+    watchID: null,
+    lastFetched: null,
+    fences: {},
+  };
 
-    this.state = {
-      center: {
-        // CN Tower default
-        lat: 43.642558,
-        lng: -79.387046,
+  doneDrawing = (polygon) => {
+    if (this.state.previousPolygon) {
+      this.state.previousPolygon.setMap(null);
+    }
+
+    this.setState({previousPolygon: polygon});
+
+    const vertices = polygon.getPath();
+
+    this.setState({
+      fence: new google.maps.Polygon({
+        paths: vertices,
+      }),
+    });
+
+    const paths = [];
+
+    for (let i = 0; i < vertices.getLength(); i++) {
+      const xy = vertices.getAt(i);
+      paths.push({
+        lat: xy.lat(),
+        lng: xy.lng(),
+      });
+    }
+
+    this.props.addFence({
+      paths,
+      createdAt: Date.now(),
+    });
+  };
+
+  checkGeofence = () => {
+    if (!this.state.center.lat || !this.state.center.lng) {
+      return;
+    }
+
+    const fetchOptions = {
+      headers: {
+        'Content-Type': 'application/json',
       },
-      content: 'Getting position...',
-      insideFence: false,
-      previousPolygon: null,
-      fence: null,
-      watchID: null,
-      lastFetched: null,
+      method: 'POST',
+      body: JSON.stringify({
+        latitude: this.state.center.lat,
+        longitude: this.state.center.lng,
+      }),
     };
-  }
+
+    fetch(`${config.functionsURL}/checkGeofence`, fetchOptions)
+      .then((response) => {
+        if (response.ok) {
+          return response.json();
+        }
+
+        throw new Error('Network response was not ok.');
+      })
+      .then((json) => {
+        this.setState({
+          insideFence: json.message,
+        });
+
+        if (!this.checkedOnce) {
+          this.setState({
+            checkedOnce: true,
+          });
+        }
+
+        return json.message;
+      })
+      .catch((err) => {
+        // eslint-disable-next-line
+        console.error(err);
+      });
+  };
 
   componentDidMount() {
     this.watchLocation();
@@ -34,17 +109,17 @@ class App extends Component {
   }
 
   watchLocation() {
-    if ('geolocation' in navigator) {
-      const geoOptions = {
-        enableHighAccuracy: true,
-        maximumAge : 30000,
-        timeout : 27000
-      };
-
-      navigator.geolocation.watchPosition(this.getLocation.bind(this), null, geoOptions);
-    } else {
-      alert('Geolocation is not supported by this browser.');
+    if (!('geolocation' in navigator)) {
+      return;
     }
+
+    const geoOptions = {
+      enableHighAccuracy: true,
+      maximumAge: 30000,
+      timeout: 27000,
+    };
+
+    navigator.geolocation.watchPosition(this.getLocation.bind(this), null, geoOptions);
   }
 
   unwatchLocation() {
@@ -59,60 +134,23 @@ class App extends Component {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
       },
-      content: `Location found.`,
+      content: 'Location found.',
       lastFetched: position.timestamp,
     });
-
-    this.checkGeofence();
-  }
-
-  checkGeofence() {
-    if (!this.state.fence) {
-      this.setState({
-        insideFence: false,
-      });
-      return;
-    }
-
-    const insideFence = google.maps.geometry.poly
-      .containsLocation(this.getCurrentPosition(), this.state.fence);
-
-    this.setState({
-      insideFence,
-    });
-  }
-
-  doneDrawing(polygon) {
-    if (this.state.previousPolygon) {
-      this.state.previousPolygon.setMap(null);
-    }
-
-    this.setState({previousPolygon: polygon});
-
-    this.setState({
-      fence: new google.maps.Polygon({
-        paths: polygon.getPaths(),
-      }),
-    });
-
-    this.checkGeofence();
-  }
-
-  getCurrentPosition() {
-    const currentPosition = new google.maps.LatLng(this.state.center.lat, this.state.center.lng);
-    return currentPosition;
   }
 
   render() {
     let map = null;
     let fenceStatus = null;
 
-    if (this.state.fence) {
+    if (this.state.checkedOnce) {
       if (this.state.insideFence) {
         fenceStatus = <p>You are inside the fence.</p>;
       } else {
         fenceStatus = <p>You are outside the fence.</p>;
       }
+    } else {
+      fenceStatus = <p>You need to check if you are inside the fences.</p>;
     }
 
     if (this.state.lastFetched) {
@@ -131,10 +169,12 @@ class App extends Component {
           mapElement={
             <div className="map" />
           }
+          fences={this.props.fences}
           center={this.state.center}
           content={this.state.content}
-          doneDrawing={this.doneDrawing.bind(this)}
+          doneDrawing={this.doneDrawing}
         />
+        <button onClick={this.checkGeofence}>Check fence</button>
       </div>);
     } else {
       map = <p>Getting location...</p>;
@@ -149,4 +189,16 @@ class App extends Component {
   }
 }
 
-export default App;
+App.propTypes = {
+  fences: PropTypes.object,
+  addFence: PropTypes.func,
+};
+
+function mapFirebaseToProps(props, ref) {
+  return {
+    fences: 'fences',
+    addFence: (fence) => ref('fences').push(fence),
+  };
+}
+
+export default connect(mapFirebaseToProps)(App);
