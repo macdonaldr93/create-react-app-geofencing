@@ -1,4 +1,3 @@
-/* global google */
 import {connect} from 'react-firebase';
 import React, {Component} from 'react';
 import Moment from 'react-moment';
@@ -7,9 +6,10 @@ import Typography from 'material-ui/Typography';
 import AppBar from 'material-ui/AppBar';
 import Toolbar from 'material-ui/Toolbar';
 import Button from 'material-ui/Button';
-import {config} from './firebase';
-import Map from './Map';
-import './App.css';
+import {config} from './helpers/firebase';
+import AuthForm from './components/AuthForm';
+import Map from './components/Map';
+import './styles/App.css';
 
 const googleMapURL = `https://maps.googleapis.com/maps/api/js?libraries=geometry,drawing&key=${process.env.REACT_APP_MAPS_API_KEY}`;
 
@@ -23,7 +23,6 @@ class App extends Component {
     content: 'Getting position...',
     checkedOnce: false,
     insideFence: false,
-    previousPolygon: null,
     fence: null,
     watchID: null,
     lastFetched: null,
@@ -31,20 +30,7 @@ class App extends Component {
   };
 
   doneDrawing = (polygon) => {
-    if (this.state.previousPolygon) {
-      this.state.previousPolygon.setMap(null);
-    }
-
-    this.setState({previousPolygon: polygon});
-
     const vertices = polygon.getPath();
-
-    this.setState({
-      fence: new google.maps.Polygon({
-        paths: vertices,
-      }),
-    });
-
     const paths = [];
 
     for (let i = 0; i < vertices.getLength(); i++) {
@@ -178,10 +164,8 @@ class App extends Component {
         </Typography>
         {fenceStatus}
         <Button
-          raised="true"
           color="primary"
           onClick={this.checkGeofence}
-          gutterBottom
         >
           Check fence
         </Button>
@@ -200,6 +184,7 @@ class App extends Component {
           </Toolbar>
         </AppBar>
         {map}
+        <AuthForm />
       </div>
     );
   }
