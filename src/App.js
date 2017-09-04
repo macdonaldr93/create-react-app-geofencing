@@ -3,6 +3,10 @@ import {connect} from 'react-firebase';
 import React, {Component} from 'react';
 import Moment from 'react-moment';
 import PropTypes from 'prop-types';
+import Typography from 'material-ui/Typography';
+import AppBar from 'material-ui/AppBar';
+import Toolbar from 'material-ui/Toolbar';
+import Button from 'material-ui/Button';
 import {config} from './firebase';
 import Map from './Map';
 import './App.css';
@@ -145,23 +149,18 @@ class App extends Component {
 
     if (this.state.checkedOnce) {
       if (this.state.insideFence) {
-        fenceStatus = <p>You are inside the fence.</p>;
+        fenceStatus = <Typography gutterBottom>You are inside the fence.</Typography>;
       } else {
-        fenceStatus = <p>You are outside the fence.</p>;
+        fenceStatus = <Typography gutterBottom>You are outside the fence.</Typography>;
       }
-    } else {
-      fenceStatus = <p>You need to check if you are inside the fences.</p>;
     }
 
     if (this.state.lastFetched) {
       map = (<div>
-        <p>
-          Last fetched: <Moment interval={10000} fromNow>{this.state.lastFetched}</Moment>
-        </p>
         <Map
           googleMapURL={googleMapURL}
           loadingElement={
-            <p>Loading maps...</p>
+            <Typography>Loading maps...</Typography>
           }
           containerElement={
             <div className="map-container" />
@@ -174,16 +173,33 @@ class App extends Component {
           content={this.state.content}
           doneDrawing={this.doneDrawing}
         />
-        <button onClick={this.checkGeofence}>Check fence</button>
+        <Typography type="subheading" gutterBottom>
+          Last fetched: <Moment interval={10000} fromNow>{this.state.lastFetched}</Moment>
+        </Typography>
+        {fenceStatus}
+        <Button
+          raised="true"
+          color="primary"
+          onClick={this.checkGeofence}
+          gutterBottom
+        >
+          Check fence
+        </Button>
       </div>);
     } else {
-      map = <p>Getting location...</p>;
+      map = <Typography type="subheading" gutterBottom>Getting location...</Typography>;
     }
 
     return (
       <div className="App">
+        <AppBar position="static">
+          <Toolbar>
+            <Typography type="title" color="inherit">
+              Geofencing
+            </Typography>
+          </Toolbar>
+        </AppBar>
         {map}
-        {fenceStatus}
       </div>
     );
   }
